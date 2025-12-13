@@ -72,7 +72,7 @@ function BookingModal({ isOpen, onClose }) {
       console.log('Booking Data:', bookingData)
 
       // Send to dummy API
-      const response = await fetch('https://2fa68301270b.ngrok-free.app/customer', {
+      const response = await fetch('https://dc08a33d7c1c.ngrok-free.app/customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
