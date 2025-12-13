@@ -57,22 +57,22 @@ function BookingModal({ isOpen, onClose }) {
     setSubmitStatus(null)
 
     try {
-      // Generate UUID
-      const uuid = crypto.randomUUID()
+      // Generate customer_id in format RESXXXXX (RES + 5 digits)
+      const randomDigits = Math.floor(10000 + Math.random() * 90000) // Generates 5-digit number
+      const customerId = `RES${randomDigits}`
 
       // Prepare booking data
       const bookingData = {
-        uuid: uuid,
         name: formData.name.trim(),
-        phoneNumber: formData.phoneNumber.trim(),
-        timestamp: new Date().toISOString(),
-        restaurant: 'Masala of India'
+        mobile: formData.phoneNumber.trim(),
+        customer_id: customerId,
+        timestamp: new Date().toISOString()
       }
 
       console.log('Booking Data:', bookingData)
 
       // Send to dummy API
-      const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
+      const response = await fetch('https://2fa68301270b.ngrok-free.app/customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
