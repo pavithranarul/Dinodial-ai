@@ -5,7 +5,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 
 CSV_FILE = "customers.csv"
-CSV_COLUMNS = ["customer_id", "name", "mobile"]
+CSV_COLUMNS = ["customer_id", "name", "mobile", "email", "timestamp"]
 
 
 # --------------------------------------------------
@@ -57,15 +57,24 @@ async def write_customers(customers: List[Dict[str, str]]) -> None:
 # CRUD Operations
 # --------------------------------------------------
 
-async def add_customer(name: str, mobile: str) -> str:
+async def add_customer(name: str, mobile: str, email: str = "", timestamp: str = "", customer_id: str = "") -> str:
     customers = await read_customers()
 
-    customer_id = f"CUST{len(customers) + 1:06d}"
+    # Use provided customer_id or generate new one (RES + 5 digits format)
+    if not customer_id:
+        import random
+        customer_id = f"RES{random.randint(10000, 99999)}"
+    
+    # Use provided timestamp or generate current timestamp
+    if not timestamp:
+        timestamp = datetime.now().isoformat()
 
     customers.append({
         "customer_id": customer_id,
         "name": name,
-        "mobile": mobile
+        "mobile": mobile,
+        "email": email,
+        "timestamp": timestamp
     })
 
     await write_customers(customers)
@@ -107,6 +116,18 @@ async def get_customers_for_arrival_check() -> List[Dict[str, str]]:
                 pass
     
     return result
+
+
+async def get_customer_by_mobile(mobile: str) -> Optional[Dict[str, str]]:
+    """Get customer by mobile/phone number."""
+    customers = await read_customers()
+    # Normalize mobile number (remove +, spaces, dashes)
+    normalized_mobile = mobile.replace('+', '').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
+    for customer in customers:
+        customer_mobile = customer.get("mobile", "").replace('+', '').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
+        if customer_mobile == normalized_mobile:
+            return customer
+    return None
 
 
 async def update_customer(customer_id: str, updates: Dict[str, str]) -> bool:
