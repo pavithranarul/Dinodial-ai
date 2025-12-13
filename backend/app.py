@@ -1,19 +1,23 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import csv_utils
 import dinodial_client
+import phone_call_handler
+import scheduler
 import uvicorn
 from datetime import datetime
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    csv_utils.init_csv()
+    await csv_utils.init_csv()
+    await scheduler.start_scheduler()
     yield
-    # Shutdown (if needed)
+    # Shutdown
+    await scheduler.stop_scheduler()
     
 app = FastAPI(
     title="Restaurant Voice Agent API",
@@ -60,7 +64,7 @@ class WebhookData(BaseModel):
 @app.post("/customer", response_model=dict)
 async def create_customer(customer: CustomerCreate):
     try:
-        customer_id = csv_utils.add_customer(
+        customer_id = await csv_utils.add_customer(
             name=customer.name,
             mobile=customer.mobile
         )
@@ -74,7 +78,7 @@ async def create_customer(customer: CustomerCreate):
 
 @app.get("/customers", response_model=List[CustomerResponse])
 async def get_customers():
-    customers = csv_utils.get_all_customers()
+    customers = await csv_utils.get_all_customers()
     return [
         CustomerResponse(
             customer_id=c["customer_id"],
@@ -87,7 +91,7 @@ async def get_customers():
 
 @app.get("/customer/{customer_id}", response_model=CustomerResponse)
 async def get_customer(customer_id: str):
-    customer = csv_utils.get_customer_by_id(customer_id)
+    customer = await csv_utils.get_customer_by_id(customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -96,7 +100,7 @@ async def get_customer(customer_id: str):
 
 @app.post("/trigger-call/{customer_id}", response_model=dict)
 async def trigger_call(customer_id: str, payload: TriggerCallRequest):
-    customer = csv_utils.get_customer_by_id(customer_id)
+    customer = await csv_utils.get_customer_by_id(customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -107,7 +111,11 @@ async def trigger_call(customer_id: str, payload: TriggerCallRequest):
         "flow": payload.flow
     }
 
-    result = dinodial_client.trigger_call(call_context)
+    result = await dinodial_client.trigger_call(
+        customer_id,
+        payload.flow,
+        call_context
+    )
 
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Call failed"))
@@ -121,7 +129,92 @@ async def handle_call_webhook(webhook: WebhookData):
     Dinodial.ai sends call outcome here.
     No CSV mutation needed.
     """
-    return dinodial_client.handle_call_webhook(webhook.dict())
+    return await dinodial_client.handle_call_webhook(webhook.dict())
+
+
+# --------------------------------------------------
+# Phone Call Handler Endpoints
+# --------------------------------------------------
+
+class MakeCallRequest(BaseModel):
+    phone_number: str
+    context: Optional[dict] = None
+
+
+@app.post("/api/phone-calls/make-call", response_model=dict)
+async def api_make_call(request: MakeCallRequest):
+    """
+    Initiate a call for AI voice bot.
+    """
+    result = await phone_call_handler.make_call(
+        phone_number=request.phone_number,
+        context=request.context
+    )
+    
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=400,
+            detail=result.get("error", "Call initiation failed")
+        )
+    
+    return result
+
+
+@app.get("/api/phone-calls/list", response_model=dict)
+async def api_get_calls_list(
+    page: Optional[int] = Query(None, description="Page number"),
+    limit: Optional[int] = Query(None, description="Items per page")
+):
+    """
+    Get list of calls.
+    """
+    params = {}
+    if page is not None:
+        params["page"] = page
+    if limit is not None:
+        params["limit"] = limit
+    
+    result = await phone_call_handler.get_calls_list(params if params else None)
+    
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=400,
+            detail=result.get("error", "Failed to fetch calls list")
+        )
+    
+    return result
+
+
+@app.get("/api/phone-calls/{call_id}/detail", response_model=dict)
+async def api_get_call_detail(call_id: int):
+    """
+    Get details of a specific call.
+    """
+    result = await phone_call_handler.get_call_detail(call_id)
+    
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=404,
+            detail=result.get("error", "Call not found")
+        )
+    
+    return result
+
+
+@app.get("/api/phone-calls/{call_id}/recording-url", response_model=dict)
+async def api_get_recording_url(call_id: int):
+    """
+    Get recording URL for a specific call.
+    """
+    result = await phone_call_handler.get_recording_url(call_id)
+    
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=404,
+            detail=result.get("error", "Recording URL not found")
+        )
+    
+    return result
 
 
 @app.get("/health")
