@@ -34,7 +34,7 @@ async def make_call(
         evaluation_tool=evaluation_tool,
         vad_engine=vad_engine
     )
-    
+    print(payload)
     headers = {
         "Authorization": f"Bearer {config.DINODIAL_PROXY_BEARER_TOKEN}",
         "Content-Type": "application/json"
