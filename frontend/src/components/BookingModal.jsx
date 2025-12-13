@@ -4,7 +4,8 @@ import './BookingModal.css'
 function BookingModal({ isOpen, onClose }) {
   const [formData, setFormData] = useState({
     name: '',
-    phoneNumber: ''
+    phoneNumber: '',
+    email:''
   })
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -41,6 +42,11 @@ function BookingModal({ isOpen, onClose }) {
     } else if (!/^[\d\s\-\+\(\)]{10,}$/.test(formData.phoneNumber)) {
       newErrors.phoneNumber = 'Please enter a valid phone number'
     }
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address'
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -66,6 +72,7 @@ function BookingModal({ isOpen, onClose }) {
         name: formData.name.trim(),
         mobile: formData.phoneNumber.trim(),
         customer_id: customerId,
+        email: formData.email.trim().toLowerCase(),
         timestamp: new Date().toISOString()
       }
 
@@ -95,7 +102,7 @@ function BookingModal({ isOpen, onClose }) {
 
       // Reset form after 3 seconds and close modal
       setTimeout(() => {
-        setFormData({ name: '', phoneNumber: '' })
+        setFormData({ name: '', phoneNumber: '', email: '' })
         setSubmitStatus(null)
         onClose()
       }, 3000)
@@ -161,6 +168,20 @@ function BookingModal({ isOpen, onClose }) {
               disabled={isSubmitting}
             />
             {errors.phoneNumber && <span className="error-message">{errors.phoneNumber}</span>}
+          </div>
+          <div className="form-group">
+            <label htmlFor="email">Email Address *</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              className={errors.email ? 'error' : ''}
+              placeholder="Enter your email address"
+              disabled={isSubmitting}
+            />
+            {errors.email && <span className="error-message">{errors.email}</span>}
           </div>
 
           {submitStatus && (
