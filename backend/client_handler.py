@@ -1,17 +1,26 @@
+"""
+Client handler for restaurant/customer management.
+Contains post-call functions, CSV related functionalities, and frontend related functionalities.
+"""
 import httpx
-from typing import Dict, Optional
+from typing import Dict
 from datetime import datetime
 import csv_utils
-import os
-from dotenv import load_dotenv
+import config
 
-load_dotenv()
-
-DINODIAL_API_BASE = "https://api.dinodial.ai"
-DINODIAL_API_KEY = os.getenv("DINODIAL_API_KEY", "")
-RESTAURANT_NAME = "Dino Restaurant"
 
 async def trigger_call(customer_id: str, call_flow: str, context: Dict[str, str]) -> Dict:
+    """
+    Trigger a call for a customer using the Dinodial API.
+    
+    Args:
+        customer_id: The customer ID
+        call_flow: The type of call flow (order_booking, arrival_confirmation, etc.)
+        context: Additional context data
+        
+    Returns:
+        Dict with success status and call details
+    """
     customer = await csv_utils.get_customer_by_id(customer_id)
     if not customer:
         return {"success": False, "error": "Customer not found"}
@@ -26,7 +35,7 @@ async def trigger_call(customer_id: str, call_flow: str, context: Dict[str, str]
         "call_flow": call_flow,
         "context": {
             "name": customer.get("name", ""),
-            "restaurant_name": RESTAURANT_NAME,
+            "restaurant_name": config.RESTAURANT_NAME,
             **context
         }
     }
@@ -38,10 +47,10 @@ async def trigger_call(customer_id: str, call_flow: str, context: Dict[str, str]
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                f"{DINODIAL_API_BASE}/v1/calls",
+                f"{config.DINODIAL_PROXY_BASE}/make-call/",
                 json=call_data,
                 headers={
-                    "Authorization": f"Bearer {DINODIAL_API_KEY}",
+                    "Authorization": f"Bearer {config.DINODIAL_PROXY_BEARER_TOKEN}",
                     "Content-Type": "application/json"
                 }
             )
@@ -53,13 +62,27 @@ async def trigger_call(customer_id: str, call_flow: str, context: Dict[str, str]
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+
 async def trigger_order_booking_call(customer_id: str) -> Dict:
+    """
+    Trigger an order booking call for a customer.
+    
+    Args:
+        customer_id: The customer ID
+        
+    Returns:
+        Dict with success status and call details
+    """
     customer = await csv_utils.get_customer_by_id(customer_id)
     if not customer or customer.get("status") != "new":
         return {"success": False, "error": "Invalid customer status for order booking"}
     
+    phone_number = customer.get("mobile", "")
+    if not phone_number:
+        return {"success": False, "error": "Mobile number not found"}
+    
     script = (
-        f"Hello {customer.get('name', 'there')}, this is calling from {RESTAURANT_NAME}. "
+        f"Hello {customer.get('name', 'there')}, this is calling from {config.RESTAURANT_NAME}. "
         f"We noticed your interest in dining with us today. "
         f"I just want to confirm your order and any special requirements. "
         f"Are you planning to dine in or take away? "
@@ -80,13 +103,27 @@ async def trigger_order_booking_call(customer_id: str) -> Dict:
     
     return result
 
+
 async def trigger_arrival_confirmation_call(customer_id: str) -> Dict:
+    """
+    Trigger an arrival confirmation call for a customer.
+    
+    Args:
+        customer_id: The customer ID
+        
+    Returns:
+        Dict with success status and call details
+    """
     customer = await csv_utils.get_customer_by_id(customer_id)
     if not customer:
         return {"success": False, "error": "Customer not found"}
     
+    phone_number = customer.get("mobile", "")
+    if not phone_number:
+        return {"success": False, "error": "Mobile number not found"}
+    
     script = (
-        f"Hi {customer.get('name', 'there')}, this is {RESTAURANT_NAME}. "
+        f"Hi {customer.get('name', 'there')}, this is {config.RESTAURANT_NAME}. "
         f"Just checking if you've reached the restaurant or are on the way?"
     )
     
@@ -98,13 +135,27 @@ async def trigger_arrival_confirmation_call(customer_id: str) -> Dict:
     
     return await trigger_call(customer_id, "arrival_confirmation", context)
 
+
 async def trigger_missed_customer_recovery_call(customer_id: str) -> Dict:
+    """
+    Trigger a missed customer recovery call.
+    
+    Args:
+        customer_id: The customer ID
+        
+    Returns:
+        Dict with success status and call details
+    """
     customer = await csv_utils.get_customer_by_id(customer_id)
     if not customer or customer.get("status") != "no_show":
         return {"success": False, "error": "Invalid customer status for recovery call"}
     
+    phone_number = customer.get("mobile", "")
+    if not phone_number:
+        return {"success": False, "error": "Mobile number not found"}
+    
     script = (
-        f"Hi {customer.get('name', 'there')}, this is {RESTAURANT_NAME}. "
+        f"Hi {customer.get('name', 'there')}, this is {config.RESTAURANT_NAME}. "
         f"We noticed you couldn't make it earlier, no worries at all. "
         f"Would you like to reschedule your visit, place a takeaway order, or cancel for today?"
     )
@@ -117,9 +168,20 @@ async def trigger_missed_customer_recovery_call(customer_id: str) -> Dict:
     
     return await trigger_call(customer_id, "missed_customer_recovery", context)
 
+
 async def handle_call_webhook(webhook_data: Dict) -> Dict:
+    """
+    Handle webhook data from Dinodial.ai after a call completes.
+    Updates customer data in CSV based on call results.
+    
+    Args:
+        webhook_data: Dictionary containing customer_id, flow, and result
+        
+    Returns:
+        Dict with success status
+    """
     customer_id = webhook_data.get("customer_id")
-    call_flow = webhook_data.get("call_flow")
+    call_flow = webhook_data.get("flow")
     call_result = webhook_data.get("result", {})
     
     if not customer_id:

@@ -1,7 +1,7 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+import client_handler
 import csv_utils
-import dinodial_client
 from datetime import datetime
 import logging
 import asyncio
@@ -19,7 +19,7 @@ async def scan_and_trigger_calls():
         customer_id = customer.get("customer_id")
         if customer_id:
             logger.info(f"Triggering order booking call for {customer_id}")
-            result = await dinodial_client.trigger_order_booking_call(customer_id)
+            result = await client_handler.trigger_order_booking_call(customer_id)
             if not result.get("success"):
                 logger.warning(f"Failed to trigger call for {customer_id}: {result.get('error')}")
     
@@ -32,7 +32,7 @@ async def scan_and_trigger_calls():
             status = customer.get("status", "")
             if status in ["order_confirmed", "called"]:
                 logger.info(f"Triggering arrival confirmation call for {customer_id}")
-                result = await dinodial_client.trigger_arrival_confirmation_call(customer_id)
+                result = await client_handler.trigger_arrival_confirmation_call(customer_id)
                 if not result.get("success"):
                     logger.warning(f"Failed to trigger arrival call for {customer_id}: {result.get('error')}")
     
@@ -53,7 +53,7 @@ async def scan_and_trigger_calls():
         
         if customer_id and should_call:
             logger.info(f"Triggering missed customer recovery call for {customer_id}")
-            result = await dinodial_client.trigger_missed_customer_recovery_call(customer_id)
+            result = await client_handler.trigger_missed_customer_recovery_call(customer_id)
             if not result.get("success"):
                 logger.warning(f"Failed to trigger recovery call for {customer_id}: {result.get('error')}")
 

@@ -4,9 +4,9 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from typing import List, Optional
 import csv_utils
-import dinodial_client
-import phone_call_handler
 import scheduler
+import client_handler
+import phone_handler
 import uvicorn
 from datetime import datetime
 
@@ -68,10 +68,7 @@ async def create_customer(customer: CustomerCreate):
             name=customer.name,
             mobile=customer.mobile
         )
-        return {
-            "success": True,
-            "customer_id": customer_id
-        }
+        return {"success": True, "customer_id": customer_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -111,7 +108,7 @@ async def trigger_call(customer_id: str, payload: TriggerCallRequest):
         "flow": payload.flow
     }
 
-    result = await dinodial_client.trigger_call(
+    result = await client_handler.trigger_call(
         customer_id,
         payload.flow,
         call_context
@@ -127,9 +124,8 @@ async def trigger_call(customer_id: str, payload: TriggerCallRequest):
 async def handle_call_webhook(webhook: WebhookData):
     """
     Dinodial.ai sends call outcome here.
-    No CSV mutation needed.
     """
-    return await dinodial_client.handle_call_webhook(webhook.dict())
+    return await client_handler.handle_call_webhook(webhook.dict())
 
 
 # --------------------------------------------------
@@ -137,18 +133,21 @@ async def handle_call_webhook(webhook: WebhookData):
 # --------------------------------------------------
 
 class MakeCallRequest(BaseModel):
-    phone_number: str
-    context: Optional[dict] = None
+    prompt: Optional[str] = None
+    evaluation_tool: Optional[dict] = None
+    vad_engine: Optional[str] = None
 
 
 @app.post("/api/phone-calls/make-call", response_model=dict)
 async def api_make_call(request: MakeCallRequest):
     """
-    Initiate a call for AI voice bot.
+    Main endpoint to initiate/connect a call for AI voice bot using POST method.
+    Uses the payload structure from model_config.py with prompt, evaluation_tool, and vad_engine.
     """
-    result = await phone_call_handler.make_call(
-        phone_number=request.phone_number,
-        context=request.context
+    result = await phone_handler.make_call(
+        prompt=request.prompt,
+        evaluation_tool=request.evaluation_tool,
+        vad_engine=request.vad_engine
     )
     
     if not result.get("success"):
@@ -174,7 +173,7 @@ async def api_get_calls_list(
     if limit is not None:
         params["limit"] = limit
     
-    result = await phone_call_handler.get_calls_list(params if params else None)
+    result = await phone_handler.get_calls_list(params if params else None)
     
     if not result.get("success"):
         raise HTTPException(
@@ -190,7 +189,7 @@ async def api_get_call_detail(call_id: int):
     """
     Get details of a specific call.
     """
-    result = await phone_call_handler.get_call_detail(call_id)
+    result = await phone_handler.get_call_detail(call_id)
     
     if not result.get("success"):
         raise HTTPException(
@@ -206,11 +205,11 @@ async def api_get_recording_url(call_id: int):
     """
     Get recording URL for a specific call.
     """
-    result = await phone_call_handler.get_recording_url(call_id)
+    result = await phone_handler.get_recording_url(call_id)
     
     if not result.get("success"):
         raise HTTPException(
-            status_code=404,
+            status_code=400,
             detail=result.get("error", "Recording URL not found")
         )
     
