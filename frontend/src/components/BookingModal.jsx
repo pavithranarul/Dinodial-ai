@@ -5,11 +5,13 @@ function BookingModal({ isOpen, onClose }) {
   const [formData, setFormData] = useState({
     name: '',
     phoneNumber: '',
-    email:''
+    email:'',
+    adminToken: ''
   })
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitStatus, setSubmitStatus] = useState(null)
+  const [showAdminSection, setShowAdminSection] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -76,6 +78,11 @@ function BookingModal({ isOpen, onClose }) {
         timestamp: new Date().toISOString()
       }
 
+      // Add admin token if provided
+      if (formData.adminToken.trim()) {
+        bookingData.admin_token = formData.adminToken.trim()
+      }
+
       console.log('Booking Data:', bookingData)
 
       // Send to dummy API
@@ -102,8 +109,9 @@ function BookingModal({ isOpen, onClose }) {
 
       // Reset form after 3 seconds and close modal
       setTimeout(() => {
-        setFormData({ name: '', phoneNumber: '', email: '' })
+        setFormData({ name: '', phoneNumber: '', email: '', adminToken: '' })
         setSubmitStatus(null)
+        setShowAdminSection(false)
         onClose()
       }, 3000)
 
@@ -120,9 +128,10 @@ function BookingModal({ isOpen, onClose }) {
 
   const handleClose = () => {
     if (!isSubmitting) {
-      setFormData({ name: '', phoneNumber: '' })
+      setFormData({ name: '', phoneNumber: '', email: '', adminToken: '' })
       setErrors({})
       setSubmitStatus(null)
+      setShowAdminSection(false)
       onClose()
     }
   }
@@ -182,6 +191,33 @@ function BookingModal({ isOpen, onClose }) {
               disabled={isSubmitting}
             />
             {errors.email && <span className="error-message">{errors.email}</span>}
+          </div>
+
+          <div className="admin-section">
+            <button
+              type="button"
+              className="admin-toggle"
+              onClick={() => setShowAdminSection(!showAdminSection)}
+              disabled={isSubmitting}
+            >
+              <span>Admin Options</span>
+              <span className={`arrow ${showAdminSection ? 'open' : ''}`}>▼</span>
+            </button>
+
+            {showAdminSection && (
+              <div className="form-group admin-input">
+                <label htmlFor="adminToken">Admin Token (Optional)</label>
+                <input
+                  type="password"
+                  id="adminToken"
+                  name="adminToken"
+                  value={formData.adminToken}
+                  onChange={handleChange}
+                  placeholder="Enter admin token"
+                  disabled={isSubmitting}
+                />
+              </div>
+            )}
           </div>
 
           {submitStatus && (
