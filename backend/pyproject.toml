@@ -2,11 +2,11 @@
 name = "restaurant-voice-agent"
 version = "1.0.0"
 description = "Automated restaurant calling agent using Dinodial.ai"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Your Name <pavithranarul7@gmail.com>, <a.hariharan0007@gmail.com>,<hiteshkumarmz16@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.11"
 fastapi = "^0.104.1"
 uvicorn = {extras = ["standard"], version = "^0.24.0"}
 pydantic = "^2.5.0"

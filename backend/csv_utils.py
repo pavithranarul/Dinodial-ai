@@ -5,7 +5,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 
 CSV_FILE = "customers.csv"
-CSV_COLUMNS = ["customer_id", "name", "mobile", "email", "timestamp"]
+CSV_COLUMNS = ["customer_id", "name", "mobile", "email", "timestamp", "admin_token"]
 
 
 # --------------------------------------------------
@@ -57,7 +57,7 @@ async def write_customers(customers: List[Dict[str, str]]) -> None:
 # CRUD Operations
 # --------------------------------------------------
 
-async def add_customer(name: str, mobile: str, email: str = "", timestamp: str = "", customer_id: str = "") -> str:
+async def add_customer(name: str, mobile: str, email: str = "", timestamp: str = "", customer_id: str = "", admin_token: str = "") -> str:
     customers = await read_customers()
 
     # Use provided customer_id or generate new one (RES + 5 digits format)
@@ -74,7 +74,8 @@ async def add_customer(name: str, mobile: str, email: str = "", timestamp: str =
         "name": name,
         "mobile": mobile,
         "email": email,
-        "timestamp": timestamp
+        "timestamp": timestamp,
+        "admin_token": admin_token
     })
 
     await write_customers(customers)

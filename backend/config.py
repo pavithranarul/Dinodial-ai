@@ -10,3 +10,4 @@ DINODIAL_PROXY_BEARER_TOKEN = os.getenv("DINODIAL_PROXY_BEARER_TOKEN", "")
 # Restaurant Configuration
 RESTAURANT_NAME = "Dino Restaurant"
 
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "AIzaSyBpa3jxuofNBgBe5ngFvTBM028XZdHqmjE")
